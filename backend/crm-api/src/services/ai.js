@@ -319,21 +319,29 @@ function detectCampaignType(goal) {
   return "dinner"; // sensible default
 }
 
-/** Returns next occurrence of a given hour:minute on allowed weekdays (0=Sun) */
+/** Returns next occurrence of a given hour:minute IST on allowed weekdays (0=Sun) */
 function nextSlot(hour, minute, allowedDays) {
-  const now = new Date();
+  const IST_OFFSET = 5.5 * 60 * 60 * 1000; // IST is UTC+5:30
+  const nowUtc = Date.now();
+  const nowIst = new Date(nowUtc + IST_OFFSET); // "wall clock" IST as a UTC-based date
+
   for (let i = 0; i < 8; i++) {
-    const d = new Date(now);
-    d.setDate(now.getDate() + i);
-    d.setHours(hour, minute, 0, 0);
-    if (i === 0 && d <= now) continue; // already passed today
-    if (allowedDays.includes(d.getDay())) return d;
+    // Build the candidate in IST wall-clock terms
+    const istDay = new Date(nowIst);
+    istDay.setUTCDate(nowIst.getUTCDate() + i);
+    istDay.setUTCHours(hour, minute, 0, 0);
+
+    // Convert that IST wall-clock time back to a real UTC instant
+    const realInstant = new Date(istDay.getTime() - IST_OFFSET);
+
+    if (i === 0 && realInstant.getTime() <= nowUtc) continue; // already passed today
+    if (allowedDays.includes(istDay.getUTCDay())) return realInstant;
   }
-  // fallback: tomorrow same time
-  const fallback = new Date(now);
-  fallback.setDate(now.getDate() + 1);
-  fallback.setHours(hour, minute, 0, 0);
-  return fallback;
+
+  const fallbackIst = new Date(nowIst);
+  fallbackIst.setUTCDate(nowIst.getUTCDate() + 1);
+  fallbackIst.setUTCHours(hour, minute, 0, 0);
+  return new Date(fallbackIst.getTime() - IST_OFFSET);
 }
 
 export async function suggestSendTime({ goal, channel }) {
