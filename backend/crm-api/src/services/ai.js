@@ -305,16 +305,17 @@ const PLAYBOOK = [
 
 function detectCampaignType(goal) {
   const g = goal.toLowerCase();
-  if (/breakfast|morning|coffee|commute/.test(g))            return "breakfast";
-  if (/lunch|lunchbox|office|midday/.test(g))                return "lunch";
-  if (/snack|tea.?time|afternoon/.test(g))                   return "snack";
-  if (/dinner|evening|night/.test(g))                        return "dinner";
-  if (/weekend|friday|saturday/.test(g))                     return "weekend";
-  if (/brunch|sunday|lazy/.test(g))                          return "brunch";
-  if (/win.?back|lapsed|dormant|inactive|re.?engage/.test(g)) return "winback";
-  if (/vip|loyal|reward|exclusive/.test(g))                  return "vip";
-  if (/flash|urgent|today only|limited/.test(g))             return "flash";
+  if (/breakfast|morning coffee|commute/.test(g))            return "breakfast";
+  if (/brunch|sunday brunch|lazy sunday/.test(g))            return "brunch";
+  if (/lunch|lunchbox|office lunch|midday/.test(g))          return "lunch";
   if (/late.?night|midnight|night.?owl/.test(g))             return "latenight";
+  if (/snack|tea.?time|afternoon/.test(g))                   return "snack";
+  if (/win.?back|lapsed|dormant|inactive|re.?engage/.test(g)) return "winback";
+  if (/vip|loyalty|reward|exclusive/.test(g))                return "vip";
+  if (/flash sale|next \d+ hour|limited time/.test(g))       return "flash";
+  if (/weekend|friday|saturday/.test(g))                     return "weekend";
+  // dinner foods + generic dinner/evening signals
+  if (/dinner|evening|biryani|pizza|butter chicken|mutton|curry|thali|feast|offer|deal|bogo|buy one/.test(g)) return "dinner";
   return "dinner"; // sensible default
 }
 
