@@ -90,16 +90,26 @@ router.post("/:id/send", async (req, res) => {
   });
 
   try {
-    const resp = await fetch(`${CHANNEL_URL()}/send`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        campaignId: String(campaign._id),
-        callbackUrl: `${CRM_URL()}/api/receipts`,
-        messages
-      })
-    });
-    if (resp.status !== 202) throw new Error(`Channel service responded ${resp.status}`);
+    async function sendToChannel() {
+  return fetch(`${CHANNEL_URL()}/send`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      campaignId: String(campaign._id),
+      callbackUrl: `${CRM_URL()}/api/receipts`,
+      messages
+    })
+  });
+}
+
+let resp = await sendToChannel();
+if (resp.status === 502 || resp.status === 503) {
+  // Channel service may be waking from sleep (Render free tier) - wait and retry
+  await new Promise((r) => setTimeout(r, 8000));
+  resp = await sendToChannel();
+}
+if (resp.status !== 202) throw new Error(`Channel service responded ${resp.status}`);
+
   } catch (err) {
     campaign.status = "draft";
     await campaign.save();
