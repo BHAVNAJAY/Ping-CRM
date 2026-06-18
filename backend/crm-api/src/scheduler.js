@@ -42,26 +42,51 @@ async function fireCampaign(campaign) {
   });
 
   try {
-    const resp = await fetch(`${CHANNEL_URL()}/send`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        campaignId: String(campaign._id),
-        callbackUrl: `${CRM_URL()}/api/receipts`,
-        messages
-      })
-    });
-    if (resp.status !== 202) throw new Error(`Channel service responded ${resp.status}`);
-    campaign.status = "sent";
-    await campaign.save();
-    console.log(`[scheduler] campaign "${campaign.name}" sent to ${comms.length} customers`);
-    return { fired: true, count: comms.length };
+    const MAX_RETRIES = 3;
+    let resp;
+
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        resp = await fetch(`${CHANNEL_URL()}/send`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            campaignId: String(campaign._id),
+            callbackUrl: `${CRM_URL()}/api/receipts`,
+            messages
+          })
+        });
+
+        if (resp.status === 202) {
+          campaign.status = "sent";
+          await campaign.save();
+          console.log(`[scheduler] campaign "${campaign.name}" sent after ${attempt} attempt(s)`);
+          return { fired: true, count: comms.length };
+        }
+
+        // Retry only on temporary server errors (5xx, includes 503)
+        if (resp.status >= 500 && attempt < MAX_RETRIES) {
+          console.log(`[scheduler] Channel unavailable (attempt ${attempt}/${MAX_RETRIES}). Retrying...`);
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+          continue;
+        }
+
+        throw new Error(`Channel service responded ${resp.status}`);
+      } catch (err) {
+        if (attempt < MAX_RETRIES) {
+          console.log(`[scheduler] Attempt ${attempt} failed: ${err.message}. Retrying...`);
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+          continue;
+        }
+        throw err;
+      }
+    }
   } catch (err) {
-    campaign.status = "draft"; // allow retry
+    campaign.status = "draft";
     campaign.scheduledAt = null;
     await campaign.save();
     await Communication.deleteMany({ campaignId: campaign._id });
-    console.error(`[scheduler] campaign "${campaign.name}" failed:`, err.message);
+    console.error(`[scheduler] campaign "${campaign.name}" failed after 3 attempts:`, err.message);
     return { fired: false, reason: err.message };
   }
 }

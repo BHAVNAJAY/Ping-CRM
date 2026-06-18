@@ -4,7 +4,7 @@
 //   1. buildFilter(goal)        -> segment filter JSON
 //   2. draftMessage(...)        -> campaign copy with {name} token
 //   3. generateInsights(stats)  -> { reasons: [...], recommendation }
-//
+//   4. chatCustomerData(...)       -> freeform answers to user questions about the customer base, grounded in provided stats.
 // Provider: Anthropic (preferred) or OpenAI, picked by which API key is set.
 // If neither key is set, or if a call/validation fails, every function falls
 // back to a deterministic rule-based implementation so the product keeps
